@@ -3,6 +3,11 @@ import { useState } from "react";
 import { AiFillEyeInvisible, AiFillEye } from "react-icons/ai";
 import { Link } from "react-router-dom";
 import OAuth from "../components/OAuth";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {db} from "../firebase"
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -12,17 +17,43 @@ const SignUp = () => {
   });
   const [isShowPassword, setIsShowPassword] = useState(true);
   const { name, email, password } = formData;
+  const navigate = useNavigate();
   function onChange(e) {
     setFormData((prevState) => ({
       ...prevState,
       [e.target.id]: e.target.value,
     }));
   }
+  async function onSubmit(e) {
+    e.preventDefault();
+    try {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+	  updateProfile(auth.currentUser, {
+		displayName: name
+	  })
+	  const user = userCredential.user
+	  const formDataCopy = {...formData}
+	  delete formDataCopy.password
+	  // save the time when the user is created
+	  formDataCopy.timestamp = serverTimestamp()
+
+	  await setDoc(doc(db, "users", user.uid),formDataCopy)
+	  toast.success("Sign up was successful")
+	  navigate("/")
+    } catch (e) {
+		toast.error('Something went wrong with the registration')
+	}
+  }
   return (
     <section>
       <h1 className="text-3xl font-bold text-center mt-6">Sign Up</h1>
       <div className="flex justify-center flex-wrap items-center px-6 py-12 max-w-6xl mx-auto">
-        <div className="md:w-[67%] lg:w-[50%] mb-12 md:mb-6">
+        <div className="md:w-[67%] lg:w-[40%] mb-12 md:mb-6">
           <img
             className="w-full rounded-2xl"
             src="https://images.pexels.com/photos/8630148/pexels-photo-8630148.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
@@ -30,13 +61,13 @@ const SignUp = () => {
           />
         </div>
         <div className="w-full md:w-[67%] lg:w-[40%] lg:ml-20">
-          <form>
+          <form onSubmit={onSubmit}>
             <input
               className="mb-6 w-full px-4 py-2 text-xl text-gray-700 border-gray-300 bg-white rounded transition ease-in-out"
               type="text"
               id="name"
               value={name}
-              onChange={onChange}
+              onChange={onChange} 
               placeholder="Full name"
             />
             <input
